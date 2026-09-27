@@ -1,0 +1,7 @@
+{
+  "name": "UrbanLens AR - AI Landmark Tourism & Historic Narrator",
+  "description": "Capture city landmarks to identify historic monuments with Gemini 3.1 Pro, retrieve verified history via Google Search Grounding with Gemini 3.5 Flash, and experience synchronized AR narrated tours powered by Gemini 3.8 Flash TTS.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
