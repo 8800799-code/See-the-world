@@ -1,4 +1,4 @@
-import { GroundingMetadata, LandmarkHistoryData, RecognizedLandmark } from '../types.ts';
+import { GroundingMetadata, LandmarkHistoryData, RecognizedLandmark, ShareStampResponse, TravelStamp } from '../types.ts';
 
 export async function convertImageUrlToBase64(url: string): Promise<{ base64: string; mimeType: string }> {
   const response = await fetch(url);
@@ -104,3 +104,31 @@ export async function askTourGuide(
     sources: json.sources || [],
   };
 }
+
+export async function shareTravelStamp(stamp: TravelStamp): Promise<ShareStampResponse> {
+  const res = await fetch('/api/share-stamp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ stamp }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to generate share link with status ${res.status}`);
+  }
+
+  return await res.json();
+}
+
+export async function fetchSharedStamp(shareId: string): Promise<TravelStamp & { shareId: string; sharedAt: string }> {
+  const res = await fetch(`/api/share-stamp/${encodeURIComponent(shareId)}`);
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || `Failed to load shared stamp with status ${res.status}`);
+  }
+
+  const json = await res.json();
+  return json.stamp;
+}
+

@@ -6,6 +6,8 @@ import { ARNarratorPlayer } from './components/ARNarratorPlayer.tsx';
 import { HistoryTimelineDrawer } from './components/HistoryTimelineDrawer.tsx';
 import { TourGuideChat } from './components/TourGuideChat.tsx';
 import { TravelJournalModal } from './components/TravelJournalModal.tsx';
+import { ShareStampModal } from './components/ShareStampModal.tsx';
+import { SharedStampBanner } from './components/SharedStampBanner.tsx';
 import {
   ARLensMode,
   ARScene,
@@ -18,6 +20,7 @@ import {
 import {
   convertImageUrlToBase64,
   fetchLandmarkHistory,
+  fetchSharedStamp,
   recognizeLandmark,
 } from './services/api.ts';
 import { AlertCircle, Camera, Sparkles } from 'lucide-react';
@@ -48,6 +51,27 @@ export default function App() {
     }
   });
   const [isJournalOpen, setIsJournalOpen] = useState<boolean>(false);
+
+  // Sharing State
+  const [sharingStamp, setSharingStamp] = useState<TravelStamp | null>(null);
+  const [sharedIncomingStamp, setSharedIncomingStamp] = useState<
+    (TravelStamp & { shareId?: string; sharedAt?: string }) | null
+  >(null);
+
+  // Check URL query params for incoming shared stamp link
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const stampId = params.get('stamp');
+    if (stampId) {
+      fetchSharedStamp(stampId)
+        .then((stamp) => {
+          setSharedIncomingStamp(stamp);
+        })
+        .catch((err) => {
+          console.warn('Failed to load shared stamp from link:', err);
+        });
+    }
+  }, []);
 
   // Save to LocalStorage on stamp update
   useEffect(() => {
@@ -164,6 +188,45 @@ export default function App() {
     handleAnalyzePhoto(stamp.photoUrl, `${stamp.city}, ${stamp.country}`);
   };
 
+  // Experience an incoming shared stamp directly in AR
+  const handleExperienceSharedStampInAR = () => {
+    if (!sharedIncomingStamp) return;
+    setActivePhoto(sharedIncomingStamp.photoUrl);
+    if (sharedIncomingStamp.audioUrl) {
+      setCachedAudioUrl(sharedIncomingStamp.audioUrl);
+    }
+    handleAnalyzePhoto(
+      sharedIncomingStamp.photoUrl,
+      `${sharedIncomingStamp.city}, ${sharedIncomingStamp.country}`
+    );
+  };
+
+  // Save incoming shared stamp directly into local passport journal
+  const handleSaveSharedStampToJournal = () => {
+    if (!sharedIncomingStamp) return;
+    const exists = journalStamps.some((s) => s.name === sharedIncomingStamp.name);
+    if (!exists) {
+      const newStamp: TravelStamp = {
+        id: Date.now().toString(),
+        name: sharedIncomingStamp.name,
+        city: sharedIncomingStamp.city,
+        country: sharedIncomingStamp.country,
+        timestamp: new Date().toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+        photoUrl: sharedIncomingStamp.photoUrl,
+        summary: sharedIncomingStamp.summary,
+        architecturalStyle: sharedIncomingStamp.architecturalStyle,
+        builtYear: sharedIncomingStamp.builtYear,
+        audioUrl: sharedIncomingStamp.audioUrl,
+        tags: sharedIncomingStamp.tags,
+      };
+      setJournalStamps((prev) => [newStamp, ...prev]);
+    }
+  };
+
   // Reset to viewfinder
   const handleReset = () => {
     setActivePhoto(null);
@@ -172,10 +235,15 @@ export default function App() {
     setGrounding(null);
     setCachedAudioUrl(undefined);
     setErrorMessage(null);
+    setSharedIncomingStamp(null);
   };
 
   const isSavedInJournal = Boolean(
     recognizedLandmark && journalStamps.some((s) => s.name === recognizedLandmark.name)
+  );
+
+  const isSharedStampInJournal = Boolean(
+    sharedIncomingStamp && journalStamps.some((s) => s.name === sharedIncomingStamp.name)
   );
 
   return (
@@ -190,6 +258,17 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col gap-6">
+        {/* Incoming Shared Stamp Banner (from public link) */}
+        {sharedIncomingStamp && !recognizedLandmark && (
+          <SharedStampBanner
+            sharedStamp={sharedIncomingStamp}
+            onExperienceInAR={handleExperienceSharedStampInAR}
+            onSaveToMyJournal={handleSaveSharedStampToJournal}
+            isSavedInJournal={isSharedStampInJournal}
+            onDismiss={() => setSharedIncomingStamp(null)}
+          />
+        )}
+
         {/* Error Notification Banner */}
         {errorMessage && (
           <div className="w-full max-w-3xl mx-auto p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-sm flex items-start gap-3 shadow-lg">
@@ -274,6 +353,14 @@ export default function App() {
         onDeleteStamp={handleDeleteStamp}
         onClearAll={handleClearAllStamps}
         onSelectStamp={handleSelectStamp}
+        onShareStamp={(stamp) => setSharingStamp(stamp)}
+      />
+
+      {/* Share Stamp Modal */}
+      <ShareStampModal
+        stamp={sharingStamp}
+        isOpen={Boolean(sharingStamp)}
+        onClose={() => setSharingStamp(null)}
       />
     </div>
   );

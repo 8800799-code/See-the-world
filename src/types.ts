@@ -84,6 +84,13 @@ export interface TravelStamp {
   tags: string[];
 }
 
+export interface ShareStampResponse {
+  success: boolean;
+  shareId: string;
+  shareUrl: string;
+  stamp: TravelStamp & { shareId: string; sharedAt: string };
+}
+
 export interface PresetLandmark {
   id: string;
   name: string;

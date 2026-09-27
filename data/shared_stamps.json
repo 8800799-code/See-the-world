@@ -1,0 +1,18 @@
+{
+  "stamp_mujq1xr2_0j1re6": {
+    "id": "test1",
+    "name": "Eiffel Tower",
+    "city": "Paris",
+    "country": "France",
+    "timestamp": "Sep 27, 2026",
+    "photoUrl": "https://images.unsplash.com/photo-1511739001486-6bfe10ce785f",
+    "summary": "Iconic wrought iron monument",
+    "architecturalStyle": "Wrought Iron Lattice",
+    "builtYear": "1889",
+    "tags": [
+      "UNESCO"
+    ],
+    "shareId": "stamp_mujq1xr2_0j1re6",
+    "sharedAt": "2026-09-27T11:14:57.950Z"
+  }
+}

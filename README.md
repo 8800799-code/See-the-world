@@ -12,3 +12,5 @@ Synthesizes dynamic historic voiceovers across customizable voice personas (Kore
 Automatically synchronizes audio playback with dynamic AR Lens filters (Natural, Blueprint, X-Ray, Hologram), interactive anchor pin spotlights, telemetry HUD cards, audio visualizer waveforms, and synchronized subtitles.
 Souvenir Travel Passport Journal:
 Collects digital stamps with gold seals, dates, architectural styles, and replayable voice clips, saved persistently in local storage.
+Public Travel Stamp Sharing:
+Generates unique public share links for any souvenir travel stamp in the journal. Anyone with the link can view the landmark's photo, official gold seal, architectural history, audio narration, and explore it directly in the AR Viewfinder or save it to their own travel passport.

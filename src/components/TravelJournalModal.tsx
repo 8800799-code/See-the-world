@@ -20,6 +20,7 @@ interface TravelJournalModalProps {
   onDeleteStamp: (id: string) => void;
   onClearAll: () => void;
   onSelectStamp: (stamp: TravelStamp) => void;
+  onShareStamp: (stamp: TravelStamp) => void;
 }
 
 export const TravelJournalModal: React.FC<TravelJournalModalProps> = ({
@@ -29,6 +30,7 @@ export const TravelJournalModal: React.FC<TravelJournalModalProps> = ({
   onDeleteStamp,
   onClearAll,
   onSelectStamp,
+  onShareStamp,
 }) => {
   if (!isOpen) return null;
 
@@ -123,13 +125,22 @@ export const TravelJournalModal: React.FC<TravelJournalModalProps> = ({
                       <h4 className="font-display font-bold text-sm text-slate-100 group-hover:text-amber-300 transition-colors">
                         {stamp.name}
                       </h4>
-                      <button
-                        onClick={() => onDeleteStamp(stamp.id)}
-                        className="text-slate-500 hover:text-rose-400 p-1 transition"
-                        title="Delete Stamp"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => onShareStamp(stamp)}
+                          className="text-slate-400 hover:text-amber-300 p-1 transition"
+                          title="Share unique public link"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => onDeleteStamp(stamp.id)}
+                          className="text-slate-500 hover:text-rose-400 p-1 transition"
+                          title="Delete Stamp"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     <p className="text-xs text-slate-400 flex items-center gap-1">
@@ -146,9 +157,14 @@ export const TravelJournalModal: React.FC<TravelJournalModalProps> = ({
 
                   {/* Action Bar */}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                    <span className="text-[10px] font-mono-tech text-slate-500 truncate max-w-[150px]">
-                      {stamp.architecturalStyle}
-                    </span>
+                    <button
+                      onClick={() => onShareStamp(stamp)}
+                      className="text-xs font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-950/40 border border-amber-500/30 hover:border-amber-400/60 transition shadow-sm"
+                      title="Share unique public link"
+                    >
+                      <Share2 className="w-3 h-3" />
+                      <span>Share Link</span>
+                    </button>
 
                     <button
                       onClick={() => {

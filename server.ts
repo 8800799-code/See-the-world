@@ -1,7 +1,8 @@
-import express, { Request, Response } from 'express';
-import { createServer as createViteServer } from 'vite';
+import express from 'express';
+import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 
@@ -15,6 +16,45 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Persistent shared stamps store
+const DATA_DIR = path.resolve(__dirname, 'data');
+const SHARED_STAMPS_FILE = path.resolve(DATA_DIR, 'shared_stamps.json');
+
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (err) {
+    console.warn('Could not create data directory:', err);
+  }
+}
+
+const sharedStampsCache = new Map<string, any>();
+
+try {
+  if (fs.existsSync(SHARED_STAMPS_FILE)) {
+    const raw = fs.readFileSync(SHARED_STAMPS_FILE, 'utf-8');
+    const records = JSON.parse(raw);
+    Object.entries(records).forEach(([id, stamp]) => {
+      sharedStampsCache.set(id, stamp);
+    });
+    console.log(`Loaded ${sharedStampsCache.size} shared stamps from disk.`);
+  }
+} catch (err) {
+  console.warn('Could not load shared stamps from disk:', err);
+}
+
+function saveSharedStampsToDisk() {
+  try {
+    const recordObj: Record<string, any> = {};
+    sharedStampsCache.forEach((stamp, id) => {
+      recordObj[id] = stamp;
+    });
+    fs.writeFileSync(SHARED_STAMPS_FILE, JSON.stringify(recordObj, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Could not save shared stamps to disk:', err);
+  }
+}
 
 // Server-side Gemini Client with required User-Agent header
 const ai = new GoogleGenAI({
@@ -824,6 +864,75 @@ Include an architectural, historical, or travel tip detail where appropriate.`;
   }
 });
 
+/**
+ * 5. Share Travel Stamp - Generates a unique public link
+ */
+app.post('/api/share-stamp', (req: Request, res: Response) => {
+  try {
+    const { stamp } = req.body;
+    if (!stamp || !stamp.name) {
+      res.status(400).json({ error: 'Valid stamp payload is required' });
+      return;
+    }
+
+    const shareId = `stamp_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
+    const sharedRecord = {
+      ...stamp,
+      shareId,
+      sharedAt: new Date().toISOString(),
+    };
+
+    sharedStampsCache.set(shareId, sharedRecord);
+    saveSharedStampsToDisk();
+
+    // Determine public URL
+    const rawOrigin =
+      req.headers.origin ||
+      (process.env.APP_URL
+        ? (process.env.APP_URL.startsWith('http') ? process.env.APP_URL : `https://${process.env.APP_URL}`)
+        : `${req.protocol}://${req.get('host')}`);
+
+    const shareUrl = `${rawOrigin}/?stamp=${shareId}`;
+
+    res.json({
+      success: true,
+      shareId,
+      shareUrl,
+      stamp: sharedRecord,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/share-stamp:', error);
+    res.status(500).json({
+      error: error?.message || 'Failed to generate share link',
+    });
+  }
+});
+
+/**
+ * 6. Get Shared Travel Stamp by Share ID
+ */
+app.get('/api/share-stamp/:id', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const stamp = sharedStampsCache.get(id);
+
+    if (!stamp) {
+      res.status(404).json({ error: 'Shared travel stamp not found or expired' });
+      return;
+    }
+
+    res.json({
+      success: true,
+      stamp,
+    });
+  } catch (error: any) {
+    console.error('Error in /api/share-stamp/:id:', error);
+    res.status(500).json({
+      error: error?.message || 'Failed to retrieve shared stamp',
+    });
+  }
+});
+
 // Health check
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({
@@ -835,17 +944,29 @@ app.get('/api/health', (_req: Request, res: Response) => {
 
 // Setup Vite middleware for development or static serving for production
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  const distDir = path.resolve(__dirname, 'dist');
+  const hasDist = fs.existsSync(path.resolve(distDir, 'index.html'));
+  const isDev = process.env.NODE_ENV === 'development';
+
+  if (isDev) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+  } else if (hasDist) {
+    app.use(express.static(distDir));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist/index.html'));
+      res.sendFile(path.resolve(distDir, 'index.html'));
     });
+  } else {
+    const { createServer: createViteServer } = await import('vite');
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
   }
 
   app.listen(PORT, '0.0.0.0', () => {
